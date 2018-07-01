@@ -28,6 +28,14 @@
  */
 
 // Revisions:
+//
+// Modified July 1 2018 by CanHobby
+// to accomodate:
+// Orange Pi Zero (256M or 512M)
+// Orange Pi Zero Plus2 H3
+// Orange Pi Zero Plus2 H5
+// mods done to isH3()
+//
 //	19 Jul 2012:
 //		Moved to the LGPL
 //		Added an abstraction layer to the main routines to save a tiny
@@ -291,7 +299,7 @@ static pthread_mutex_t pinMutex ;
 // Debugging & Return codes
 
 int wiringPiDebug       = FALSE; 
-int wiringPiReturnCodes = FALSE ;
+int wiringPiReturnCodes = FALSE;
 
 // sysFds:
 //	Map a file descriptor from the /sys/class/gpio/gpioX/value
@@ -1293,20 +1301,20 @@ int isH3(void)
 		piBoardRevOops ("Unable to open /proc/cpuinfo") ;
 	  while (fgets (line, 120, cpuFd) != NULL)
 		{
-			if (strncmp (line, "Hardware", 8) == 0)
+if (strncmp (line, "CPU implementer", 15) == 0)  //			if (strncmp (line, "Hardware", 8) == 0)
 			break ;
 		}
 		
 	fclose (cpuFd) ;
-	if (strncmp (line, "Hardware", 8) != 0)
-		piBoardRevOops ("No \"Hardware\" line") ;
+if (strncmp (line, "CPU implementer", 15) != 0)  //	if (strncmp (line, "Hardware", 8) != 0)
+		piBoardRevOops ("No \"implementer\" line") ;
 	
   for (d = &line [strlen (line) - 1] ; (*d == '\n') || (*d == '\r') ; --d)
     *d = 0 ;
   if (wiringPiDebug)
     printf ("piboardRev: Hardware string: %s\n", line) ;
 	
-	if (strstr(line,"sun8i") != NULL)			//guenter von sun7i auf sun8i
+	if (strstr(line,"0x41") != NULL)			//guenter von sun7i auf sun8i
 	{
 		if (wiringPiDebug)
 		printf ("Hardware:%s\n",line) ;
@@ -1321,10 +1329,6 @@ int isH3(void)
 }
 // changed by Christian Beckert
 
-
-
-
-
 int piBoardRev (void)
 {
   FILE *cpuFd ;
@@ -1335,9 +1339,9 @@ int piBoardRev (void)
 /*add for orange pi guenter */
   if(isH3())			//guenter if(isA20()) //Beckert
   {
-	version = BPRVER;
+	version = boardRev = BPRVER;
 		if (wiringPiDebug)
-			printf ("piboardRev:  %d\n", version) ;
+			printf ("OrangePiboardRev:  %d\n", boardRev) ;
 		return BPRVER ;
   }
  /*end 2014.09.18*/
@@ -1349,21 +1353,21 @@ int piBoardRev (void)
     piBoardRevOops ("Unable to open /proc/cpuinfo") ;
 
   while (fgets (line, 120, cpuFd) != NULL)
-    if (strncmp (line, "Revision", 8) == 0)
+    if (strncmp (line, "CPU revision", 12) == 0)
       break ;
 
   fclose (cpuFd) ;
 
-  if (strncmp (line, "Revision", 8) != 0)
-    piBoardRevOops ("No \"Revision\" line") ;
+  if (strncmp (line, "CPU revision", 12) != 0)
+    piBoardRevOops ("No \"revision\" line") ;
 
 // Chomp trailing CR/NL
 
   for (c = &line [strlen (line) - 1] ; (*c == '\n') || (*c == '\r') ; --c)
     *c = 0 ;
   
-  if (wiringPiDebug)
-    printf ("piboardRev: Revision string: %s\n", line) ;
+  if (!wiringPiDebug)
+    printf ("piboardRev: CPU revision string: %s\n", line) ;
 
 // Scan to first digit
 
@@ -1398,6 +1402,7 @@ int piBoardRev (void)
   else
     boardRev = 2 ;
 
+  boardRev = 2 ;
   if (wiringPiDebug)
     printf ("piBoardRev: Returning revision: %d\n", boardRev) ;
 
@@ -1420,6 +1425,8 @@ void piBoardId (int *model, int *rev, int *mem, int *maker, int *overVolted)
   char line [120] ;
   char *c ;
 
+  if(isH3()) return;
+  
   (void)piBoardRev () ;	// Call this first to make sure all's OK. Don't care about the result.
 
   if ((cpuFd = fopen ("/proc/cpuinfo", "r")) == NULL)
@@ -2916,32 +2923,32 @@ int wiringPiSetup (void)
 			  //gpio += 0x21b; //for PD0 cubieboard
 				//if (wiringPiDebug)
 				//	printf("++++ gpio PDx:0x%x\n", gpio);
-			  if ((int32_t)gpio == -1)
+			  if (gpio == (uint32_t *)-1)
 				return wiringPiFailure (WPI_ALMOST,"wiringPiSetup: mmap (GPIO) failed: %s\n", strerror (errno)) ;
 
 			// PWM
 
 			  pwm = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PWM_BP) ;
-			  if ((int32_t)pwm == -1)
+			  if (pwm == (uint32_t *)-1)
 				 return wiringPiFailure (WPI_ALMOST,"wiringPiSetup: mmap (PWM) failed: %s\n", strerror (errno)) ;
 			 
 			// Clock control (needed for PWM)
 
 			  clk = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, CLOCK_BASE_BP) ;
-			  if ((int32_t)clk == -1)
+			  if (clk == (uint32_t *)-1)
 				 return wiringPiFailure (WPI_ALMOST,"wiringPiSetup: mmap (CLOCK) failed: %s\n", strerror (errno)) ;
 			 
 			// The drive pads
 
 			  pads = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PADS_BP) ;
-			  if ((int32_t)pads == -1)
+			  if (pads == (uint32_t *)-1)
 				 return wiringPiFailure (WPI_ALMOST,"wiringPiSetup: mmap (PADS) failed: %s\n", strerror (errno)) ;
 
 			#ifdef	USE_TIMER
 			// The system timer
 
 			  timer = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_TIMER_BP) ;
-			  if ((int32_t)timer == -1)
+			  if (timer == (uint32_t *)-1)
 				return wiringPiFailure (WPI_ALMOST,"wiringPiSetup: mmap (TIMER) failed: %s\n", strerror (errno)) ;
 
 			// Set the timer to free-running, 1MHz.
@@ -2957,32 +2964,32 @@ int wiringPiSetup (void)
 	{
 		// GPIO:
 		  gpio = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_BASE) ;
-		  if ((int32_t)gpio == -1)
+		  if (gpio == (uint32_t *)-1)
 		    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (GPIO) failed: %s\n", strerror (errno)) ;
 
 		// PWM
 
 		  pwm = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PWM) ;
-		  if ((int32_t)pwm == -1)
+		  if (pwm == (uint32_t *)-1)
 		    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PWM) failed: %s\n", strerror (errno)) ;
 		 
 		// Clock control (needed for PWM)
 
 		  clk = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, CLOCK_BASE) ;
-		  if ((int32_t)clk == -1)
+		  if (clk == (uint32_t *)-1)
 		    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (CLOCK) failed: %s\n", strerror (errno)) ;
 		 
 		// The drive pads
 
 		  pads = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PADS) ;
-		  if ((int32_t)pads == -1)
+		  if (pads == (uint32_t *)-1)
 		    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PADS) failed: %s\n", strerror (errno)) ;
 
 #ifdef	USE_TIMER
 		// The system timer
 
 		  timer = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_TIMER) ;
-		  if ((int32_t)timer == -1)
+		  if (timer == (uint32_t *)-1)
 		    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (TIMER) failed: %s\n", strerror (errno)) ;
 
 		// Set the timer to free-running, 1MHz.
