@@ -5,7 +5,8 @@ Orange Pi Bit Bash of the LCD1602 module
 
 lcd.cpp which provides a command line interface to send commands or data to the LCD1602
 
-disp.cpp which allows you to send a string of data to the LCD from the command line  date | ./disp  OR  disp Hello
+disp.cpp which allows you to send a string of data to the LCD from the command line like
+#date | ./disp  OR  #disp Hello
 
 demo.cpp which is a demo of 2 lines doing a reverse scroll..
 
